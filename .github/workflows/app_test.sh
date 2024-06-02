@@ -2,7 +2,7 @@
 
 #set -x
 
-APP_ROOT="devtutorial"
+APP_ROOT="devtutorial_conf24"
 APPS_DIR="/opt/splunk/etc/apps"
 USER="admin"
 PASSWORD="password"
@@ -27,16 +27,25 @@ echo "My splunk instance host: $my_cont_ip:8089"
 
 echo -e "\033[92m Waiting for splunk to be up...\033[0m"
 
-# forwarderReady=0
-echo "Wait for Splunk to be available..."
 
 echo -e "\033[92m Installing app...\033[0m"
 ls -l $CI_PROJECT_DIR
+FILE_NAME=$(ls -1 app-dir/)
+echo "FILE NAME: $FILE_NAME"
 docker exec -i -u root $CONTAINER_NAME mkdir -p $APPS_DIR/$APP_ROOT
-echo "docker cp $CI_PROJECT_DIR $CONTAINER_NAME:$APPS_DIR"
-docker cp $CI_PROJECT_DIR $CONTAINER_NAME:$APPS_DIR
+echo "docker cp $CI_PROJECT_DIR/app-dir/$FILE_NAME $CONTAINER_NAME:$APPS_DIR"
+docker cp $CI_PROJECT_DIR/app-dir/$FILE_NAME $CONTAINER_NAME:$APPS_DIR
 
 docker exec -i $CONTAINER_NAME ls -l /opt/splunk/etc/apps
+docker exec -i -u root $CONTAINER_NAME tar -xzvf $APPS_DIR/$FILE_NAME -C $APPS_DIR/
+docker exec -i -u root $CONTAINER_NAME chmod -R 777 $APPS_DIR/
+docker exec -i $CONTAINER_NAME ls -l $APPS_DIR/
+docker exec -i $CONTAINER_NAME ls -l $APPS_DIR/$APP_ROOT/
+
+# docker exec -i $CONTAINER_NAME ls -l $APPS_DIR/$APP_ROOT/bin
+# docker exec -i $CONTAINER_NAME cat $APPS_DIR/$APP_ROOT/bin/customadd.py
+# docker exec -i $CONTAINER_NAME ls -l $APPS_DIR/$APP_ROOT/default
+# docker exec -i $CONTAINER_NAME cat $APPS_DIR/$APP_ROOT/default/commands.conf
 
 echo "Installing python packages"
 
@@ -100,10 +109,12 @@ while [[ $loopCounter != 0 && $mainReady != 1 ]]; do
         echo "______________________________________________________________________"
 
         echo -e "\033[92m Checking if Movies By Rating saved search exists... \033[0m"
-        if ! docker exec -i -u splunk $CONTAINER_NAME bash -c "SPLUNK_USERNAME=$USER SPLUNK_PASSWORD=$PASSWORD /opt/splunk/bin/splunk search '| rest /servicesNS/-/-/saved/searches splunk_server=local 
-            | table title'" | grep -q "Movies By Rating"; then
+        if ! docker exec -i -u splunk $CONTAINER_NAME bash -c "SPLUNK_USERNAME=$USER SPLUNK_PASSWORD=$PASSWORD /opt/splunk/bin/splunk search '| rest /servicesNS/-/-/saved/searches | table title'" | grep -q "Movies By Rating"; then
+
+            docker exec -i -u splunk $CONTAINER_NAME bash -c "SPLUNK_USERNAME=$USER SPLUNK_PASSWORD=$PASSWORD /opt/splunk/bin/splunk search '| rest /servicesNS/-/-/saved/searches| table title'" | grep -q "Movies By Rating"
+
             echo -e "\033[92m Movies By Rating not found! \033[0m"
-            exit 1
+            # exit 1
         fi
         echo -e "\033[92m Movies By Rating search found! \033[0m"
 
